@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cervical Cancer Cell Classification</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        header { text-align: center; color: white; margin-bottom: 40px; }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle { font-size: 1.2em; opacity: 0.9; }
+
+        .nav-links { margin-top: 20px; }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 8px 16px;
+            border: 2px solid white;
+            border-radius: 20px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active { background: white; color: #667eea; }
+
+        .main-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        /* ── Upload zone ── */
+        .upload-section {
+            text-align: center;
+            padding: 40px;
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-section:hover  { border-color: #764ba2; background: #f0f2ff; }
+
+        .upload-section.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+
+        .upload-icon   { font-size: 4em; margin-bottom: 20px; }
+        .upload-text   { font-size: 1.3em; color: #667eea; margin-bottom: 10px; }
+        .upload-subtext { color: #666; font-size: 0.9em; }
+
+        #fileInput { display: none; }
+
+        /* ── Spinner ── */
+        .loading { display: none; text-align: center; margin-top: 20px; }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px; height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Error ── */
+        .error {
+            display: none;
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        /* ── Results ── */
+        .preview-section { display: none; margin-top: 30px; }
+
+        .preview-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .preview-image { text-align: center; }
+
+        .preview-image img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .result-card {
+            background: #f8f9ff;
+            padding: 30px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .result-header { font-size: 1.5em; margin-bottom: 20px; color: #333; }
+
+        .prediction-main {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+
+        .prediction-label { font-size: 1.8em; font-weight: bold; margin-bottom: 10px; }
+
+        .confidence-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            transition: width 1s ease;
+            min-width: 48px; /* keep label readable at low confidence */
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-top: 10px;
+            color: white;
+        }
+
+        .description { color: #666; margin-top: 10px; line-height: 1.6; }
+
+        .all-predictions { margin-top: 30px; }
+
+        .prediction-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid;
+        }
+
+        .prediction-name { font-weight: 600; font-size: 1.1em; }
+        .prediction-confidence { font-size: 1.2em; font-weight: bold; }
+
+        /* ── Buttons ── */
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 5px;
+        }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ── Info strip ── */
+        .info-section {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .info-section h3 { color: #1976D2; margin-bottom: 10px; }
+
+        @media (max-width: 768px) {
+            .preview-container { grid-template-columns: 1fr; }
+            h1 { font-size: 1.8em; }
+            .main-card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🔬 Cervical Cancer Cell Classification</h1>
+        <p class="subtitle">AI-Powered Medical Image Analysis</p>
+        <div class="nav-links">
+            <a href="/" class="active">Home</a>
+            <a href="/about">About</a>
+        </div>
+    </header>
+
+    <div class="main-card">
+
+        <!-- Upload drop-zone -->
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Upload Cervical Cell Image</div>
+            <div class="upload-subtext">Click to browse or drag and drop your image here</div>
+            <div class="upload-subtext" style="margin-top:10px;">
+                Supported: PNG, JPG, JPEG, BMP, TIF, TIFF &nbsp;|&nbsp; Max 16 MB
+            </div>
+            <!-- FIX: restrict accept to actual allowed extensions -->
+            <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff">
+        </div>
+
+        <!-- Spinner -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top:15px; color:#667eea; font-size:1.1em;">Analysing image…</p>
+        </div>
+
+        <!-- Error box -->
+        <div class="error" id="errorBox"></div>
+
+        <!-- Results -->
+        <div class="preview-section" id="previewSection">
+            <div style="text-align:center; margin-bottom:20px;">
+                <button class="btn" onclick="resetUpload()">⬆ Upload Another Image</button>
+            </div>
+
+            <div class="preview-container">
+                <div class="preview-image">
+                    <h3 style="margin-bottom:15px;">Uploaded Image</h3>
+                    <img id="previewImg" src="" alt="Uploaded image">
+                </div>
+
+                <div class="result-card">
+                    <div class="result-header">📊 Analysis Results</div>
+
+                    <div class="prediction-main" id="mainPrediction">
+                        <div class="prediction-label" id="predictedClass"></div>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceBar"></div>
+                        </div>
+                        <div class="risk-badge" id="riskBadge"></div>
+                        <div class="description" id="cellDescription"></div>
+                    </div>
+
+                    <div class="all-predictions">
+                        <h4 style="margin-bottom:15px; color:#333;">All Classifications:</h4>
+                        <div id="allPredictions"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>ℹ️ Important Information</h3>
+            <p>
+                <strong>Disclaimer:</strong> This tool is for research and educational purposes only.
+                It should not be used as a substitute for professional medical diagnosis.
+                Always consult with qualified healthcare professionals for medical advice.
+            </p>
+        </div>
+
+    </div><!-- /.main-card -->
+</div><!-- /.container -->
+
+<script>
+    const uploadSection  = document.getElementById('uploadSection');
+    const fileInput      = document.getElementById('fileInput');
+    const previewSection = document.getElementById('previewSection');
+    const loadingEl      = document.getElementById('loading');
+    const errorBox       = document.getElementById('errorBox');
+
+    // ── Open file browser on click ────────────────────────────────────────
+    uploadSection.addEventListener('click', () => fileInput.click());
+
+    // ── Drag-and-drop ─────────────────────────────────────────────────────
+    uploadSection.addEventListener('dragover', e => {
+        e.preventDefault();
+        uploadSection.classList.add('dragover');
+    });
+    uploadSection.addEventListener('dragleave', () =>
+        uploadSection.classList.remove('dragover'));
+    uploadSection.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadSection.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+
+    // ── File picker change ────────────────────────────────────────────────
+    fileInput.addEventListener('change', e => {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    });
+
+    // ── Client-side validation ────────────────────────────────────────────
+    function handleFile(file) {
+        const validExts = ['png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff'];
+        const ext = file.name.split('.').pop().toLowerCase();
+
+        if (!validExts.includes(ext)) {
+            showError('Invalid file type. Allowed: PNG, JPG, JPEG, BMP, TIF, TIFF.');
+            return;
+        }
+        if (file.size > 16 * 1024 * 1024) {
+            showError('File too large. Maximum size is 16 MB.');
+            return;
+        }
+        uploadImage(file);
+    }
+
+    // ── Upload to /predict ────────────────────────────────────────────────
+    function uploadImage(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        uploadSection.style.display  = 'none';
+        loadingEl.style.display      = 'block';
+        errorBox.style.display       = 'none';
+        previewSection.style.display = 'none';
+
+        fetch('/predict', { method: 'POST', body: formData })
+            .then(res => {
+                // FIX: propagate HTTP errors properly (was ignoring non-2xx)
+                if (!res.ok) {
+                    return res.json().then(d => {
+                        throw new Error(d.error || 'Server error ' + res.status);
+                    });
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                displayResults(data);
+            })
+            .catch(err => {
+                // FIX: keep upload zone visible when an error occurs
+                loadingEl.style.display     = 'none';
+                uploadSection.style.display = 'block';
+                showError(err.message);
+            });
+    }
+
+    // ── Render prediction results ─────────────────────────────────────────
+    function displayResults(data) {
+        loadingEl.style.display      = 'none';
+        previewSection.style.display = 'block';
+
+        document.getElementById('previewImg').src = data.image_data;
+
+        const mainPred = document.getElementById('mainPrediction');
+        mainPred.style.borderLeftColor = data.color;
+
+        const label = document.getElementById('predictedClass');
+        label.textContent = data.predicted_class_display;
+        label.style.color = data.color;
+
+        const bar = document.getElementById('confidenceBar');
+        bar.style.width      = data.confidence + '%';
+        bar.textContent      = data.confidence.toFixed(2) + '%';
+        bar.style.background =
+            'linear-gradient(90deg, ' + data.color + ', ' + darken(data.color, 30) + ')';
+
+        const badge = document.getElementById('riskBadge');
+        badge.textContent      = 'Risk: ' + data.risk_level;
+        badge.style.background = getRiskColor(data.risk_level);
+
+        document.getElementById('cellDescription').textContent = data.description;
+
+        const allDiv = document.getElementById('allPredictions');
+        allDiv.innerHTML = '';
+        data.all_predictions.forEach(pred => {
+            const item = document.createElement('div');
+            item.className = 'prediction-item';
+            item.style.borderLeftColor = pred.color;
+            item.innerHTML =
+                '<div>' +
+                    '<div class="prediction-name" style="color:' + pred.color + '">' +
+                        pred.class_display +
+                    '</div>' +
+                    '<div style="font-size:0.9em;color:#666;">' + pred.description + '</div>' +
+                '</div>' +
+                '<div class="prediction-confidence" style="color:' + pred.color + '">' +
+                    pred.confidence.toFixed(2) + '%' +
+                '</div>';
+            allDiv.appendChild(item);
+        });
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function showError(msg) {
+        errorBox.textContent   = '⚠️ ' + msg;
+        errorBox.style.display = 'block';
+    }
+
+    function resetUpload() {
+        uploadSection.style.display  = 'block';
+        previewSection.style.display = 'none';
+        loadingEl.style.display      = 'none';
+        errorBox.style.display       = 'none';
+        fileInput.value = '';
+    }
+
+    function getRiskColor(risk) {
+        return ({
+            'Very Low':         '#4CAF50',
+            'Low':              '#8BC34A',
+            'Low to Moderate':  '#FFC107',
+            'Moderate':         '#FF9800',
+            'Moderate to High': '#FF5722',
+            'High':             '#F44336',
+        })[risk] || '#9E9E9E';
+    }
+
+    /** Darken a hex colour by `amount` (0–255). */
+    function darken(hex, amount) {
+        return '#' + hex.replace(/^#/, '').replace(/../g, ch =>
+            ('0' + Math.max(0, parseInt(ch, 16) - amount).toString(16)).slice(-2));
+    }
+</script>
+</body>
+</html>
