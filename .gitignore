@@ -5,3 +5,4 @@ __pycache__/
 resnet152_cervical_cancer.keras
 vgg16_cervical_cancer.keras
 ensemble_config.pkl
+resnet_extracted/
